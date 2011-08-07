@@ -201,6 +201,16 @@ void build_git_blob_lists(struct database *db,
   free(table.blob_names);
   fclose(f);
   close(fds[0]);
+  for (;;) {
+    int status, result = waitpid(subprocess, &status, 0);
+    if (result < 0) {
+      perror("Could not fork git");
+      exit(1);
+    }
+    if (WIFEXITED(status)) {
+      break;
+    }
+  }
 }
 /*}}}*/
 void copy_gitblob_to_path(char *blob_name, const char *target_path)/*{{{*/
@@ -209,7 +219,6 @@ void copy_gitblob_to_path(char *blob_name, const char *target_path)/*{{{*/
     "git", "--git-dir", git_dir, "cat-file", "blob", blob_name, NULL
   };
   pid_t subprocess;
-  int status;
 
   if (!git_dir) {
     fprintf(stderr, "No git dir set up");
@@ -243,9 +252,15 @@ void copy_gitblob_to_path(char *blob_name, const char *target_path)/*{{{*/
     }
   }
 
-  if (waitpid(subprocess, &status, 0) < 0) {
-    perror("Could not fork git");
-    exit(1);
+  for (;;) {
+    int status, result = waitpid(subprocess, &status, 0);
+    if (result < 0) {
+      perror("Could not fork git");
+      exit(1);
+    }
+    if (WIFEXITED(status)) {
+      break;
+    }
   }
 }
 /*}}}*/
@@ -312,6 +327,16 @@ unsigned char *read_blob(char *blob_name, int *len)/*{{{*/
     *len += count;
   }
   close(fds[0]);
+  for (;;) {
+    int status, result = waitpid(subprocess, &status, 0);
+    if (result < 0) {
+      perror("Could not fork git");
+      exit(1);
+    }
+    if (WIFEXITED(status)) {
+      break;
+    }
+  }
 
   return result;
 }
