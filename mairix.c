@@ -716,7 +716,7 @@ int main (int argc, char **argv)/*{{{*/
   } else {
     enum filetype ftype;
 
-    if (!maildir_folders && !mh_folders && !mboxen) {
+    if (!maildir_folders && !mh_folders && !git_dir && !mboxen) {
       fprintf(stderr, "No [mh_]folders/mboxen/MAIRIX_[MH_]FOLDERS set\n");
       unlock_and_exit(2);
     }
