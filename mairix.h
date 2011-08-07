@@ -318,6 +318,7 @@ void build_message_list(char *folder_base, char *folders, enum folder_type ft,
     struct msgpath_array *msgs, struct globber_array *omit_globs);
 
 /* In rfc822.c */
+struct rfc822 *make_rfc822_data(char *filename, char *data, int len);
 struct rfc822 *make_rfc822(char *filename);
 void free_rfc822(struct rfc822 *msg);
 enum data_to_rfc822_error {

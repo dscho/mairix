@@ -1412,6 +1412,16 @@ static struct msg_src *setup_msg_src(char *filename)/*{{{*/
   return &result;
 }
 /*}}}*/
+struct rfc822 *make_rfc822_data(char *filename, char *data, int len)/*{{{*/
+{
+  struct msg_src *src;
+
+  /* Now process the data */
+  src = setup_msg_src(filename);
+  /* For one message per file, ignore missing end boundary condition. */
+  return data_to_rfc822(src, data, len, NULL);
+}
+/*}}}*/
 struct rfc822 *make_rfc822(char *filename)/*{{{*/
 {
   int len;
@@ -1425,12 +1435,7 @@ struct rfc822 *make_rfc822(char *filename)/*{{{*/
 
   if (data)
   {
-    struct msg_src *src;
-    /* Now process the data */
-    src = setup_msg_src(filename);
-    /* For one message per file, ignore missing end boundary condition. */
-    result = data_to_rfc822(src, (char *) data, len, NULL);
-
+    result = make_rfc822_data(filename, (char *) data, len);
     free_ro_mapping(data, len);
   }
 
