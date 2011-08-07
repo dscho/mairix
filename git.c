@@ -55,17 +55,17 @@ static int add_to_hashtable(struct hashtable *table, char *blob_name)/*{{{*/
   if (table->n + 1 > table->max / 2) {
     /* grow */
     int new_max = table->max > 128 ? table->max * 2 : 256, i;
-    char **new_array = new_array(char *, new_max);
-    struct hashtable new_table = { new_array, 0, new_max };
+    char **array = new_array(char *, new_max);
+    struct hashtable new_table = { array, 0, new_max };
 
-    memset(new_array, 0, sizeof(char *) * new_max);
+    memset(array, 0, sizeof(char *) * new_max);
     for (i = 0; i < table->max; i++)
       if (table->blob_names[i]) {
         add_to_hashtable(&new_table, table->blob_names[i]);
       }
 
     free(table->blob_names);
-    table->blob_names = new_array;
+    table->blob_names = array;
     table->max = new_max;
   }
 
@@ -106,7 +106,7 @@ static void add_file_to_list(char *x, struct msgpath_array *arr) {/*{{{*/
   char *y = new_string(x);
   if (arr->n == arr->max) {
     arr->max += 1024;
-    arr->paths = grow_array(struct msgpath,    arr->max, arr->paths);
+    arr->paths = grow_array(struct msgpath, arr->max, arr->paths);
     arr->type  = grow_array(enum message_type, arr->max, arr->type);
   }
   arr->type[arr->n] = MTY_GITBLOB;
@@ -132,7 +132,7 @@ void build_git_blob_lists(struct database *db,
     return;
   }
 
-  if (!stat(database_path, &st)) {
+  if (database_path && !stat(database_path, &st)) {
     int len = sizeof(argv) / sizeof(*argv);
     argv[len - 4] = "--since";
     argv[len - 3] = ctime(&st.st_mtime);
@@ -153,6 +153,7 @@ void build_git_blob_lists(struct database *db,
 
   subprocess = fork();
   if (subprocess < 0) {
+    fprintf(stderr, "While trying to read objects: ");
     perror("Could not fork");
     exit(1);
   }
@@ -189,7 +190,7 @@ void build_git_blob_lists(struct database *db,
       }
     }
 
-    if (len > 40 && buffer[40] == ' ' && slashes == 2 && strcmp(buffer + len - 12, "/.gitignore\n")) {
+    if (len > 40 && buffer[40] == ' ' && buffer[41] != '.' && slashes == 2 && strcmp(buffer + len - 12, "/.gitignore\n")) {
       buffer[40] = '\0';
       if (hashtable_index(&table, buffer) < 0) {
         add_file_to_list(buffer, msgs);
@@ -197,6 +198,7 @@ void build_git_blob_lists(struct database *db,
       }
     }
   }
+  free(table.blob_names);
   fclose(f);
   close(fds[0]);
 }
@@ -216,6 +218,7 @@ void copy_gitblob_to_path(char *blob_name, const char *target_path)/*{{{*/
 
   subprocess = fork();
   if (subprocess < 0) {
+    fprintf(stderr, "While trying to read %s: ", blob_name);
     perror("Could not fork");
     exit(1);
   }
@@ -268,6 +271,7 @@ unsigned char *read_blob(char *blob_name, int *len)/*{{{*/
 
   subprocess = fork();
   if (subprocess < 0) {
+    fprintf(stderr, "While trying to read %s into memory: ", blob_name);
     perror("Could not fork");
     exit(1);
   }

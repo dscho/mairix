@@ -54,6 +54,9 @@ void free_msgpath_array(struct msgpath_array *x)/*{{{*/
           break;
         case MTY_DEAD:
           break;
+        case MTY_GITBLOB:
+          free(x->paths[i].src.git.blob_name);
+          break;
       }
     }
     free(x->type);

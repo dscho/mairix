@@ -182,6 +182,10 @@ static int char_length(struct database *db)/*{{{*/
         assert(db->msgs[i].src.mpf.path);
         result += (1 + strlen(db->msgs[i].src.mpf.path));
         break;
+      case MTY_GITBLOB:
+        assert(db->msgs[i].src.git.blob_name);
+        result += (1 + strlen(db->msgs[i].src.git.blob_name));
+        break;
     }
   }
 
@@ -322,6 +326,9 @@ static char *write_type_and_flag_table(struct database *db, unsigned int *uidata
       case MTY_DEAD:
         cdata[i] = DB_MSG_DEAD;
         break;
+      case MTY_GITBLOB:
+        cdata[i] = DB_MSG_GITBLOB;
+        break;
     }
 
     if (msgdata->seen)    cdata[i] |= FLAG_SEEN;
@@ -370,6 +377,16 @@ static char *write_messages(struct database *db, struct write_map *map, unsigned
          * information is written to the database, which can crash the search
          * functions. */
         uidata[map->tid_offset + i]  = db->msgs[i].tid;
+        break;
+      case MTY_GITBLOB:
+        slen = strlen(db->msgs[i].src.git.blob_name);
+        uidata[map->path_offset + i] = cdata - data;
+        uidata[map->mtime_offset + i] = 0; /* For cleanliness */
+        uidata[map->size_offset + i] = db->msgs[i].src.git.size;
+        uidata[map->date_offset + i] = db->msgs[i].date;
+        uidata[map->tid_offset + i]  = db->msgs[i].tid;
+        memcpy(cdata, db->msgs[i].src.git.blob_name, 1 + slen); /* include trailing null */
+        cdata += (1 + slen);
         break;
     }
   }

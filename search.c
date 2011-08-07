@@ -361,6 +361,7 @@ static void match_substring_in_paths(struct read_db *db, char *substring, int ma
         decode_mbox_indices(db->path_offsets[i], &mbix, &msgix);
         token = db->data + db->mbox_paths_table[mbix];
         break;
+      case DB_MSG_GITBLOB:
       case DB_MSG_DEAD:
         hits[i] = 0; /* never match on dead paths */
         goto next_message;
@@ -1100,6 +1101,17 @@ static int do_search(struct read_db *db, char **args, char *output_path, int sho
               break;
             case DB_MSG_DEAD:
               break;
+            case DB_MSG_GITBLOB:
+              {
+                char *target_path;
+                char *message_path;
+                message_path = db->data + db->path_offsets[i];
+                target_path = mk_maildir_path(i, output_path, !is_seen, is_seen, is_replied, is_flagged);
+                copy_gitblob_to_path(message_path, target_path);
+                free(target_path);
+                ++n_hits;
+              }
+              break;
           }
         }
       }
@@ -1126,6 +1138,14 @@ static int do_search(struct read_db *db, char **args, char *output_path, int sho
               }
               break;
             case DB_MSG_DEAD:
+              break;
+            case DB_MSG_GITBLOB:
+              {
+                char *target_path = mk_mh_path(i, output_path);
+                copy_gitblob_to_path(db->data + db->path_offsets[i], target_path);
+                free(target_path);
+                ++n_hits;
+              }
               break;
           }
         }
@@ -1158,6 +1178,11 @@ static int do_search(struct read_db *db, char **args, char *output_path, int sho
                 break;
               case DB_MSG_DEAD:
                 break;
+              case DB_MSG_GITBLOB:
+                {
+                  perror("Git into mbox not yet implemented");
+                }
+                break;
             }
           }
         }
@@ -1189,6 +1214,12 @@ static int do_search(struct read_db *db, char **args, char *output_path, int sho
               }
               break;
             case DB_MSG_DEAD:
+              break;
+            case DB_MSG_GITBLOB:
+              {
+                ++n_hits;
+                printf("%s\n", db->data + db->path_offsets[i]);
+              }
               break;
           }
         }
@@ -1239,6 +1270,11 @@ static int do_search(struct read_db *db, char **args, char *output_path, int sho
               }
               break;
             case DB_MSG_DEAD:
+              break;
+            case DB_MSG_GITBLOB:
+              {
+                perror("Git excerpts not yet implemented");
+              }
               break;
           }
 

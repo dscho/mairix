@@ -46,6 +46,10 @@ struct msgpath {/*{{{*/
       int file_index; /* index into table of mbox files */
       int msg_index;  /* index of message within the file */
     } mbox; /* for messages in mbox format folders */
+    struct {
+      char *blob_name; /* SHA-1 of the blob */
+      size_t size;  /* size of the message in bytes */
+    } git; /* for messages stored as blobs in a git repository */
   } src;
 
   /* Now fields that are common to both types of message. */
@@ -65,7 +69,8 @@ enum message_type {/*{{{*/
   MTY_DEAD,     /* msg no longer exists, i.e. don't report in searches,
                    prune it on a '-p' run. */
   MTY_FILE,     /* msg <-> file in 1-1 correspondence e.g. maildir, MH */
-  MTY_MBOX      /* multiple msgs per file : MBOX format file */
+  MTY_MBOX,     /* multiple msgs per file : MBOX format file */
+  MTY_GITBLOB,  /* msg is a git blob */
 };
 /*}}}*/
 struct msgpath_array {/*{{{*/
@@ -352,7 +357,7 @@ struct database *new_database_from_file(char *db_filename, int do_integrity_chec
 void free_database(struct database *db);
 void maybe_grow_message_arrays(struct database *db);
 void tokenise_message(int file_index, struct database *db, struct rfc822 *msg);
-int update_database(struct database *db, struct msgpath *sorted_paths, int n_paths, int do_fast_index);
+int update_database(struct database *db, struct msgpath *sorted_paths, int n_paths, struct msgpath *git_paths, int n_git_paths, int do_fast_index);
 void check_database_integrity(struct database *db);
 int cull_dead_messages(struct database *db, int do_integrity_checks);
 
@@ -399,5 +404,11 @@ void unlock_and_exit(int code);
 
 /* In mairix.c */
 void report_error(const char *str, const char *filename);
+
+/* In git.c */
+extern char *git_dir;
+struct rfc822 *make_rfc822_git(char *blob_name);
+void copy_gitblob_to_path(char *blob_name, const char *target_path);
+void build_git_blob_lists(struct database *db, struct msgpath_array *msgs, const char *database_path);
 
 #endif /* MAIRIX_H */

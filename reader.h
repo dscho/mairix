@@ -116,6 +116,8 @@
 #define DB_MSG_FILE 1
 /* mbox : multiple files per message */
 #define DB_MSG_MBOX 2
+/* mbox : multiple files per message */
+#define DB_MSG_GITBLOB 3
 /*}}}*/
 
 #define FLAG_SEEN    (1<<3)

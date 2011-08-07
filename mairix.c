@@ -243,6 +243,7 @@ static void parse_rc_file(char *name)/*{{{*/
       add_folders(&maildir_folders, copy_value(p));
     }
     else if (!strncasecmp(p, "maildir=", 8)) add_folders(&maildir_folders, copy_value(p));
+    else if (!strncasecmp(p, "gitdir=", 7)) git_dir = copy_value(p);
     else if (!strncasecmp(p, "mh_folders=", 11)) {
       fprintf(stderr, "'mh_folders=' option in rc file is depracated, use 'mh='\n");
       add_folders(&mh_folders, copy_value(p));
@@ -294,6 +295,9 @@ static int check_message_list_for_duplicates(struct msgpath_array *msgs)/*{{{*/
         break;
       case MTY_FILE:
         sorted_paths[nn++] = msgs->paths[i].src.mpf.path;
+        break;
+      case MTY_GITBLOB:
+        sorted_paths[nn++] = msgs->paths[i].src.git.blob_name;
         break;
     }
   }
@@ -471,7 +475,7 @@ static void usage(void)/*{{{*/
 
 int main (int argc, char **argv)/*{{{*/
 {
-  struct msgpath_array *msgs;
+  struct msgpath_array *msgs, *git_msgs;
   struct database *db = NULL;
 
   char *arg_rc_file_path = NULL;
@@ -746,9 +750,12 @@ int main (int argc, char **argv)/*{{{*/
       unlock_and_exit(2);
     }
 
+    git_msgs = new_msgpath_array();
+    build_git_blob_lists(db, git_msgs, ftype == M_FILE ? database_path : NULL);
+
     build_mbox_lists(db, folder_base, mboxen, omit_globs);
 
-    any_updates = update_database(db, msgs->paths, msgs->n, do_fast_index);
+    any_updates = update_database(db, msgs->paths, msgs->n, git_msgs->paths, git_msgs->n, do_fast_index);
     if (do_purge) {
       any_purges = cull_dead_messages(db, do_integrity_checks);
     }

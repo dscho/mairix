@@ -147,6 +147,9 @@ static void check_message_path_integrity(struct database *db)/*{{{*/
       case MTY_FILE:
         paths[n++] = db->msgs[i].src.mpf.path;
         break;
+      case MTY_GITBLOB:
+        paths[n++] = db->msgs[i].src.git.blob_name;
+        break;
     }
   }
 
@@ -243,6 +246,10 @@ void free_database(struct database *db)/*{{{*/
         case MTY_FILE:
           assert(db->msgs[i].src.mpf.path);
           free(db->msgs[i].src.mpf.path);
+          break;
+        case MTY_GITBLOB:
+          assert(db->msgs[i].src.git.blob_name);
+          free(db->msgs[i].src.git.blob_name);
           break;
       }
     }
@@ -486,6 +493,11 @@ struct database *new_database_from_file(char *db_filename, int do_integrity_chec
           ++mb->n_so_far;
         }
 
+        break;
+      case DB_MSG_GITBLOB:
+        result->type[i] = MTY_GITBLOB;
+        result->msgs[i].src.git.blob_name = new_string(input->data + input->path_offsets[i]);
+        result->msgs[i].src.git.size  = input->size_table[i];
         break;
     }
     result->msgs[i].seen    = (input->msg_type_and_flags[i] & FLAG_SEEN)    ? 1:0;
@@ -734,6 +746,10 @@ static void scan_new_messages(struct database *db, int start_at)/*{{{*/
         if (verbose) fprintf(stderr, "Scanning <%s>\n", db->msgs[i].src.mpf.path);
         msg = make_rfc822(db->msgs[i].src.mpf.path);
         break;
+      case MTY_GITBLOB:
+        if (verbose) fprintf(stderr, "Skipping <%s>\n", db->msgs[i].src.git.blob_name);
+        msg = make_rfc822_git(db->msgs[i].src.git.blob_name);
+        break;
     }
     if(msg)
     {
@@ -902,7 +918,7 @@ static int do_stat(struct msgpath *mp)/*{{{*/
   }
 }
 /*}}}*/
-int update_database(struct database *db, struct msgpath *sorted_paths, int n_msgs, int do_fast_index)/*{{{*/
+int update_database(struct database *db, struct msgpath *sorted_paths, int n_msgs, struct msgpath *git_msgs, int n_git_msgs, int do_fast_index)/*{{{*/
 {
   /* The incoming list must be sorted into order, to make binary searching
    * possible.  We search for each existing path in the incoming sorted array.
@@ -957,6 +973,9 @@ int update_database(struct database *db, struct msgpath *sorted_paths, int n_msg
         break;
       case MTY_DEAD:
         break;
+      case MTY_GITBLOB:
+        /* Nothing to do on this pass. */
+        break;
     }
   }
 
@@ -993,6 +1012,9 @@ int update_database(struct database *db, struct msgpath *sorted_paths, int n_msg
         /* already dead */
         ++n_already_dead;
         break;
+      case MTY_GITBLOB:
+        /* Nothing to do on this pass. */
+        break;
     }
   }
 
@@ -1015,6 +1037,21 @@ int update_database(struct database *db, struct msgpath *sorted_paths, int n_msg
         fprintf(stderr, "Cannot add '%s' to database; stat() failed\n", sorted_paths[i].src.mpf.path);
       }
     }
+  }
+
+  if (n_git_msgs > 0) {
+    int offset = db->n_msgs;
+    any_new = 1;
+    if (db->n_msgs + n_git_msgs >= db->max_msgs) {
+      db->max_msgs = db->n_msgs + n_git_msgs;
+      db->msgs = grow_array(struct msgpath, db->max_msgs, db->msgs);
+      db->type = grow_array(enum message_type, db->max_msgs, db->type);
+    }
+    for (i = 0; i < n_git_msgs; i++) {
+      db->type[offset + i] = MTY_GITBLOB;
+      db->msgs[offset + i] = git_msgs[i];
+    }
+    db->n_msgs += n_git_msgs;
   }
 
   if (any_new) {
@@ -1253,6 +1290,7 @@ int cull_dead_messages(struct database *db, int do_integrity_checks)/*{{{*/
     switch (db->type[i]) {
       case MTY_FILE:
       case MTY_MBOX:
+      case MTY_GITBLOB:
         new_idx[i] = j++;
         break;
       case MTY_DEAD:
@@ -1277,6 +1315,7 @@ int cull_dead_messages(struct database *db, int do_integrity_checks)/*{{{*/
         break;
       case MTY_FILE:
       case MTY_MBOX:
+      case MTY_GITBLOB:
         if (i > j) {
           db->msgs[j] = db->msgs[i];
           db->type[j]  = db->type[i];
