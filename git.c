@@ -121,9 +121,9 @@ void build_git_blob_lists(struct database *db,
   struct hashtable table = { NULL, 0, 0 };
   int i, subprocess;
   struct stat st;
-  char *argv[9] = {
+  char *argv[] = {
     "git", "--git-dir", git_dir, "rev-list",
-    "--objects", "HEAD", NULL, NULL, NULL
+    "--objects", "HEAD", NULL, NULL, NULL, NULL
   };
   int fds[2];
   FILE *f;
@@ -133,9 +133,18 @@ void build_git_blob_lists(struct database *db,
   }
 
   if (database_path && !stat(database_path, &st)) {
-    int len = sizeof(argv) / sizeof(*argv);
+    static char ref_buffer[1024];
+    char *date = ctime(&st.st_mtime);
+    int len = strlen(date);
+
+    if (len > 0 && date[len - 1] == '\n') {
+      date[len - 1] = '\0';
+    }
+    snprintf(ref_buffer, sizeof(ref_buffer) - 1, "^HEAD@{%s}", date);
+    len = sizeof(argv) / sizeof(*argv);
+    argv[len - 5] = ref_buffer;
     argv[len - 4] = "--since";
-    argv[len - 3] = ctime(&st.st_mtime);
+    argv[len - 3] = date;
     argv[len - 2] = "HEAD";
   }
 
