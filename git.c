@@ -127,8 +127,19 @@ void build_git_blob_lists(struct database *db,
   };
   int fds[2];
   FILE *f;
+  const char *env;
 
   if (!git_dir) {
+    return;
+  }
+
+  env = getenv("MAIRIX_GIT_OBJECT");
+  if (env) {
+    int i;
+    for (i = 0; i < db->n_msgs; i++)
+      if (db->type[i] == MTY_GITBLOB && !strcmp(db->msgs[i].src.git.blob_name, env))
+        db->type[i] = MTY_DEAD;
+    add_file_to_list(strdup(env), msgs);
     return;
   }
 
